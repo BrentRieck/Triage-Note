@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Clinician Helper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-gradient: radial-gradient(circle at top, #eef3ff 0%, #f9fbff 45%, #ffffff 100%);
+        --card-bg: rgba(255, 255, 255, 0.9);
+        --border-color: rgba(63, 81, 181, 0.16);
+        --shadow: 0 12px 32px rgba(79, 114, 205, 0.12);
+        --primary: #3b5bdb;
+        --primary-dark: #2f49b5;
+        --text-muted: #5f6780;
+        --text-color: #1f2430;
+        --input-bg: rgba(255, 255, 255, 0.85);
+        --input-border: rgba(59, 91, 219, 0.25);
+        --output-bg: rgba(244, 247, 255, 0.8);
+        --output-border: rgba(59, 91, 219, 0.3);
+      }
+
+      body.dark {
+        color-scheme: dark;
+        --bg-gradient: radial-gradient(circle at top, #101425 0%, #141a2e 35%, #0b0f1d 100%);
+        --card-bg: rgba(18, 24, 40, 0.82);
+        --border-color: rgba(129, 152, 255, 0.25);
+        --shadow: 0 16px 36px rgba(5, 7, 15, 0.6);
+        --primary: #8d9eff;
+        --primary-dark: #7c8dff;
+        --text-muted: #bdc5ff;
+        --text-color: #eef1ff;
+        --input-bg: rgba(13, 19, 33, 0.78);
+        --input-border: rgba(141, 158, 255, 0.32);
+        --output-bg: rgba(14, 22, 38, 0.85);
+        --output-border: rgba(141, 158, 255, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--bg-gradient);
+        min-height: 100vh;
+        padding: 32px 16px 48px;
+        color: var(--text-color);
+        transition: background 0.4s ease, color 0.4s ease;
+      }
+
+      .app-shell {
+        max-width: 880px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      header {
+        text-align: center;
+        padding: 12px 12px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      header h1 {
+        margin: 0 0 12px;
+        font-size: clamp(1.75rem, 4vw, 2.6rem);
+        letter-spacing: -0.015em;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 1.05rem;
+      }
+
+      .theme-toggle {
+        align-self: flex-end;
+        appearance: none;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: rgba(59, 91, 219, 0.12);
+        color: var(--primary);
+        padding: 8px 14px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      }
+
+      .theme-toggle:hover {
+        background: rgba(59, 91, 219, 0.2);
+        transform: translateY(-1px);
+      }
+
+      .theme-toggle:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      body.dark .theme-toggle {
+        background: rgba(141, 158, 255, 0.16);
+        color: #e8ecff;
+      }
+
+      body.dark .theme-toggle:hover {
+        background: rgba(141, 158, 255, 0.26);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        padding: clamp(18px, 3vw, 28px);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+
+      .card h3 {
+        margin-top: 0;
+        font-size: 1.2rem;
+        letter-spacing: -0.01em;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        border-radius: 14px;
+        border: 1px solid var(--input-border);
+        padding: 14px 16px;
+        resize: vertical;
+        font: inherit;
+        line-height: 1.5;
+        color: inherit;
+        background: var(--input-bg);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.2);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      button:not(.theme-toggle) {
+        appearance: none;
+        border: none;
+        border-radius: 999px;
+        background: var(--primary);
+        color: #ffffff;
+        padding: 12px 20px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 8px 18px rgba(59, 91, 219, 0.28);
+      }
+
+      button:not(.theme-toggle):hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+      }
+
+      button:not(.theme-toggle):active {
+        transform: translateY(0);
+      }
+
+      button:not(.theme-toggle):disabled {
+        cursor: wait;
+        opacity: 0.72;
+        transform: none;
+        box-shadow: none;
+      }
+
+      #out {
+        white-space: pre-wrap;
+        background: var(--output-bg);
+        border-radius: 14px;
+        border: 1px dashed var(--output-border);
+        padding: 18px 20px;
+        min-height: 160px;
+        line-height: 1.6;
+        font-size: 1.02rem;
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        min-height: 1.2em;
+      }
+
+      .disclaimer {
+        margin: 6px 0 0;
+        font-size: 0.9rem;
+        max-width: 520px;
+        color: var(--text-muted);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
+          🌙 Dark mode
+        </button>
+        <h1>Clinician Helper</h1>
+        <p>Turn messy triage notes into polished physician summaries or focused follow-up questions.</p>
+        <p class="disclaimer">
+          No protected health information is saved by this site and it will be purposely omitted from
+          responses.
+        </p>
+      </header>
+
+      <section class="card" aria-labelledby="input-heading">
+        <h3 id="input-heading">Input</h3>
+        <textarea
+          id="notes"
+          placeholder="Paste unstructured notes or patient call transcripts..."
+          aria-label="Clinical notes input"
+        ></textarea>
+        <div class="actions">
+          <button id="summarize-btn" onclick="summarize()">Summarize Notes</button>
+          <button id="triage-btn" onclick="triage()">Generate Triage Questions</button>
+        </div>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card" aria-labelledby="output-heading">
+        <h3 id="output-heading">Output</h3>
+        <pre id="out"></pre>
+      </section>
+    </div>
+
+    <script>
+      const notesEl = document.getElementById("notes");
+      const statusEl = document.getElementById("status");
+      const outputEl = document.getElementById("out");
+      const summarizeBtn = document.getElementById("summarize-btn");
+      const triageBtn = document.getElementById("triage-btn");
+      const themeToggle = document.getElementById("theme-toggle");
+
+      const THEME_STORAGE_KEY = "clinician-helper-theme";
+
+      function applyTheme(theme) {
+        const isDark = theme === "dark";
+        document.body.classList.toggle("dark", isDark);
+        themeToggle.setAttribute("aria-pressed", String(isDark));
+        themeToggle.textContent = isDark ? "☀️ Light mode" : "🌙 Dark mode";
+      }
+
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
+      let activeTheme = storedTheme || (prefersDark.matches ? "dark" : "light");
+      applyTheme(activeTheme);
+
+      themeToggle.addEventListener("click", () => {
+        activeTheme = document.body.classList.contains("dark") ? "light" : "dark";
+        localStorage.setItem(THEME_STORAGE_KEY, activeTheme);
+        applyTheme(activeTheme);
+      });
+
+      const handleSystemThemeChange = (event) => {
+        if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+          activeTheme = event.matches ? "dark" : "light";
+          applyTheme(activeTheme);
+        }
+      };
+
+      if (typeof prefersDark.addEventListener === "function") {
+        prefersDark.addEventListener("change", handleSystemThemeChange);
+      } else if (typeof prefersDark.addListener === "function") {
+        prefersDark.addListener(handleSystemThemeChange);
+      }
+
+      async function handleRequest(endpoint, onSuccess) {
+        const text = notesEl.value.trim();
+        if (!text) {
+          statusEl.textContent = "Please provide some notes first.";
+          notesEl.focus();
+          return;
+        }
+
+        const buttons = [summarizeBtn, triageBtn];
+        buttons.forEach((btn) => (btn.disabled = true));
+        statusEl.textContent = "Processing...";
+        outputEl.textContent = "";
+
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          });
+          const json = await res.json();
+
+          if (res.ok) {
+            onSuccess(json);
+            statusEl.textContent = "Completed";
+          } else {
+            throw new Error(json.detail || "Unknown error");
+          }
+        } catch (error) {
+          statusEl.textContent = "";
+          outputEl.textContent = `Error: ${error.message}`;
+        } finally {
+          buttons.forEach((btn) => (btn.disabled = false));
+        }
+      }
+
+      async function summarize() {
+        handleRequest("/api/summarize", (json) => {
+          outputEl.textContent = json.summary || "No summary returned.";
+        });
+      }
+
+      async function triage() {
+        handleRequest("/api/triage", (json) => {
+          const questions = (json.questions || []).map((q, i) => `${i + 1}. ${q}`);
+          outputEl.textContent = questions.length ? questions.join("\n") : "No questions returned.";
+        });
+      }
+    </script>
+  </body>
+</html>

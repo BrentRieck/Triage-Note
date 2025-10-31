@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Clinician Helper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 840px;
+        margin: 24px auto;
+      }
+      textarea {
+        width: 100%;
+        min-height: 180px;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+      }
+      button {
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Clinician Helper</h1>
+    <div class="card">
+      <h3>Input</h3>
+      <textarea id="notes" placeholder="Paste unstructured notes or patient call notes..."></textarea>
+      <div class="row">
+        <button onclick="summarize()">Summarize Notes</button>
+        <button onclick="triage()">Generate Triage Questions</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Output</h3>
+      <pre id="out" style="white-space: pre-wrap"></pre>
+    </div>
+
+    <script>
+      async function summarize() {
+        const text = document.getElementById("notes").value.trim();
+        if (!text) return;
+        const res = await fetch("/api/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const json = await res.json();
+        document.getElementById("out").textContent = res.ok
+          ? json.summary
+          : `Error: ${json.detail || "unknown"}`;
+      }
+
+      async function triage() {
+        const text = document.getElementById("notes").value.trim();
+        if (!text) return;
+        const res = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const json = await res.json();
+        document.getElementById("out").textContent = res.ok
+          ? (json.questions || []).map((q, i) => `${i + 1}. ${q}`).join("\n")
+          : `Error: ${json.detail || "unknown"}`;
+      }
+    </script>
+  </body>
+</html>

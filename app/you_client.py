@@ -17,7 +17,20 @@ class YouClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        payload: dict[str, object] = {"agent": agent, "input": content}
+        payload: dict[str, object] = {
+            "agent": agent,
+            "input": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": content,
+                        }
+                    ],
+                }
+            ],
+        }
         if stream:
             payload["stream"] = True
 
@@ -35,6 +48,18 @@ class YouClient:
         text = ""
         if isinstance(data, dict) and data.get("output"):
             for item in data["output"]:
-                if isinstance(item, dict) and item.get("text"):
-                    text += item["text"]
+                if isinstance(item, dict):
+                    if item.get("text"):
+                        text += str(item["text"])
+                        continue
+
+                    contents = item.get("content")
+                    if isinstance(contents, list):
+                        for piece in contents:
+                            if (
+                                isinstance(piece, dict)
+                                and piece.get("text")
+                                and piece.get("type") in {"output_text", "input_text", "text"}
+                            ):
+                                text += str(piece["text"])
         return text.strip()

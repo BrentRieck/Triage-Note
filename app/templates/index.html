@@ -1,244 +1,80 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="utf-8" />
     <title>Clinician Helper</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      :root {
-        color-scheme: light;
-        --bg-gradient: radial-gradient(circle at top, #eef3ff 0%, #f9fbff 45%, #ffffff 100%);
-        --card-bg: rgba(255, 255, 255, 0.9);
-        --border-color: rgba(63, 81, 181, 0.16);
-        --shadow: 0 12px 32px rgba(79, 114, 205, 0.12);
-        --primary: #3b5bdb;
-        --primary-dark: #2f49b5;
-        --text-muted: #5f6780;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
       body {
-        margin: 0;
-        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-        background: var(--bg-gradient);
-        min-height: 100vh;
-        padding: 32px 16px 48px;
-        color: #1f2430;
+        font-family: system-ui, sans-serif;
+        max-width: 840px;
+        margin: 24px auto;
       }
-
-      .app-shell {
-        max-width: 880px;
-        margin: 0 auto;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-      }
-
-      header {
-        text-align: center;
-        padding: 12px 12px 8px;
-      }
-
-      header h1 {
-        margin: 0 0 12px;
-        font-size: clamp(1.75rem, 4vw, 2.6rem);
-        letter-spacing: -0.015em;
-      }
-
-      header p {
-        margin: 0;
-        color: var(--text-muted);
-        font-size: 1.05rem;
-      }
-
-      .card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 18px;
-        padding: clamp(18px, 3vw, 28px);
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(10px);
-      }
-
-      .card h3 {
-        margin-top: 0;
-        font-size: 1.2rem;
-        letter-spacing: -0.01em;
-      }
-
       textarea {
         width: 100%;
         min-height: 180px;
-        border-radius: 14px;
-        border: 1px solid rgba(59, 91, 219, 0.25);
-        padding: 14px 16px;
-        resize: vertical;
-        font: inherit;
-        line-height: 1.5;
-        color: inherit;
-        background: rgba(255, 255, 255, 0.85);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
-
-      textarea:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.2);
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
       }
-
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 16px;
-      }
-
       button {
-        appearance: none;
-        border: none;
-        border-radius: 999px;
-        background: var(--primary);
-        color: #ffffff;
-        padding: 12px 20px;
-        font-size: 1rem;
-        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
         cursor: pointer;
-        display: inline-flex;
-        align-items: center;
+      }
+      .row {
+        display: flex;
         gap: 8px;
-        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-        box-shadow: 0 8px 18px rgba(59, 91, 219, 0.28);
-      }
-
-      button:hover {
-        background: var(--primary-dark);
-        transform: translateY(-1px);
-      }
-
-      button:active {
-        transform: translateY(0);
-      }
-
-      button:disabled {
-        cursor: wait;
-        opacity: 0.72;
-        transform: none;
-        box-shadow: none;
-      }
-
-      #out {
-        white-space: pre-wrap;
-        background: rgba(244, 247, 255, 0.8);
-        border-radius: 14px;
-        border: 1px dashed rgba(59, 91, 219, 0.3);
-        padding: 18px 20px;
-        min-height: 160px;
-        line-height: 1.6;
-        font-size: 1.02rem;
-      }
-
-      .status {
-        margin-top: 12px;
-        font-size: 0.95rem;
-        color: var(--text-muted);
-        min-height: 1.2em;
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-          scroll-behavior: auto !important;
-        }
       }
     </style>
   </head>
   <body>
-    <div class="app-shell">
-      <header>
-        <h1>Clinician Helper</h1>
-        <p>Turn messy triage notes into polished physician summaries or focused follow-up questions.</p>
-      </header>
+    <h1>Clinician Helper</h1>
+    <div class="card">
+      <h3>Input</h3>
+      <textarea id="notes" placeholder="Paste unstructured notes or patient call notes..."></textarea>
+      <div class="row">
+        <button onclick="summarize()">Summarize Notes</button>
+        <button onclick="triage()">Generate Triage Questions</button>
+      </div>
+    </div>
 
-      <section class="card" aria-labelledby="input-heading">
-        <h3 id="input-heading">Input</h3>
-        <textarea
-          id="notes"
-          placeholder="Paste unstructured notes or patient call transcripts..."
-          aria-label="Clinical notes input"
-        ></textarea>
-        <div class="actions">
-          <button id="summarize-btn" onclick="summarize()">Summarize Notes</button>
-          <button id="triage-btn" onclick="triage()">Generate Triage Questions</button>
-        </div>
-        <div id="status" class="status" role="status" aria-live="polite"></div>
-      </section>
-
-      <section class="card" aria-labelledby="output-heading">
-        <h3 id="output-heading">Output</h3>
-        <pre id="out"></pre>
-      </section>
+    <div class="card">
+      <h3>Output</h3>
+      <pre id="out" style="white-space: pre-wrap"></pre>
     </div>
 
     <script>
-      const notesEl = document.getElementById("notes");
-      const statusEl = document.getElementById("status");
-      const outputEl = document.getElementById("out");
-      const summarizeBtn = document.getElementById("summarize-btn");
-      const triageBtn = document.getElementById("triage-btn");
-
-      async function handleRequest(endpoint, onSuccess) {
-        const text = notesEl.value.trim();
-        if (!text) {
-          statusEl.textContent = "Please provide some notes first.";
-          notesEl.focus();
-          return;
-        }
-
-        const buttons = [summarizeBtn, triageBtn];
-        buttons.forEach((btn) => (btn.disabled = true));
-        statusEl.textContent = "Processing...";
-        outputEl.textContent = "";
-
-        try {
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
-          });
-          const json = await res.json();
-
-          if (res.ok) {
-            onSuccess(json);
-            statusEl.textContent = "Completed";
-          } else {
-            throw new Error(json.detail || "Unknown error");
-          }
-        } catch (error) {
-          statusEl.textContent = "";
-          outputEl.textContent = `Error: ${error.message}`;
-        } finally {
-          buttons.forEach((btn) => (btn.disabled = false));
-        }
-      }
-
       async function summarize() {
-        handleRequest("/api/summarize", (json) => {
-          outputEl.textContent = json.summary || "No summary returned.";
+        const text = document.getElementById("notes").value.trim();
+        if (!text) return;
+        const res = await fetch("/api/summarize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
         });
+        const json = await res.json();
+        document.getElementById("out").textContent = res.ok
+          ? json.summary
+          : `Error: ${json.detail || "unknown"}`;
       }
 
       async function triage() {
-        handleRequest("/api/triage", (json) => {
-          const questions = (json.questions || []).map((q, i) => `${i + 1}. ${q}`);
-          outputEl.textContent = questions.length ? questions.join("\n") : "No questions returned.";
+        const text = document.getElementById("notes").value.trim();
+        if (!text) return;
+        const res = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
         });
+        const json = await res.json();
+        document.getElementById("out").textContent = res.ok
+          ? (json.questions || []).map((q, i) => `${i + 1}. ${q}`).join("\n")
+          : `Error: ${json.detail || "unknown"}`;
       }
     </script>
   </body>

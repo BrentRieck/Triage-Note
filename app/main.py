@@ -16,13 +16,6 @@ templates = Jinja2Templates(directory="app/templates")
 you_client = YouClient()
 
 
-@app.middleware("http")
-async def add_cache_control_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers.setdefault("Cache-Control", "no-store")
-    return response
-
-
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})

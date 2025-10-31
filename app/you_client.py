@@ -18,7 +18,7 @@ class YouClient:
             "Content-Type": "application/json",
         }
         payload: dict[str, object] = {
-            "agent": agent,
+            "agent_id": agent,
             "input": [
                 {
                     "role": "user",

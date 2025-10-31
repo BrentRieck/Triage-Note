@@ -5,50 +5,271 @@
     <title>Clinician Helper</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      body {
-        font-family: system-ui, sans-serif;
-        max-width: 840px;
-        margin: 24px auto;
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f7fb;
+        --bg-secondary: #ffffff;
+        --text: #1b2533;
+        --muted: #5f6b7c;
+        --border: rgba(16, 24, 40, 0.08);
+        --primary: #2563eb;
+        --primary-dark: #1d4ed8;
+        --shadow: 0 20px 35px rgba(15, 23, 42, 0.12);
       }
+
+      body.dark {
+        --bg: #0f172a;
+        --bg-secondary: #111c35;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --border: rgba(148, 163, 184, 0.2);
+        --primary: #60a5fa;
+        --primary-dark: #3b82f6;
+        --shadow: 0 18px 30px rgba(2, 6, 23, 0.5);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.3s ease, color 0.3s ease;
+      }
+
+      .wrapper {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 2.4rem;
+        letter-spacing: -0.02em;
+      }
+
+      .subtitle {
+        margin-top: 6px;
+        color: var(--muted);
+      }
+
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-weight: 500;
+        color: var(--text);
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        transition: background 0.3s ease, border 0.3s ease;
+      }
+
+      .toggle span {
+        font-size: 0.9rem;
+      }
+
+      .toggle svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        padding: 28px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .card h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+
       textarea {
         width: 100%;
-        min-height: 180px;
-      }
-      .card {
-        border: 1px solid #ddd;
-        border-radius: 12px;
+        min-height: 200px;
         padding: 16px;
-        margin: 12px 0;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.6);
+        color: inherit;
+        font-family: inherit;
+        font-size: 1rem;
+        resize: vertical;
+        transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
-      button {
-        padding: 10px 16px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        cursor: pointer;
+
+      body.dark textarea {
+        background: rgba(15, 23, 42, 0.6);
       }
+
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+      }
+
       .row {
         display: flex;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      button {
+        padding: 12px 20px;
+        border-radius: 14px;
+        border: none;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      .primary-btn {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+      }
+
+      .primary-btn:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+      }
+
+      .outline-btn {
+        background: transparent;
+        color: var(--primary);
+        border: 1px solid rgba(37, 99, 235, 0.5);
+      }
+
+      .outline-btn:hover {
+        background: rgba(37, 99, 235, 0.08);
+        transform: translateY(-1px);
+      }
+
+      pre {
+        margin: 0;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: inherit;
+        background: rgba(15, 23, 42, 0.04);
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid var(--border);
+        min-height: 160px;
+      }
+
+      body.dark pre {
+        background: rgba(15, 23, 42, 0.35);
+      }
+
+      .disclaimer {
+        margin-top: 24px;
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      footer {
+        margin-top: 48px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 640px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .toggle {
+          align-self: flex-end;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Clinician Helper</h1>
-    <div class="card">
-      <h3>Input</h3>
-      <textarea id="notes" placeholder="Paste unstructured notes or patient call notes..."></textarea>
-      <div class="row">
-        <button onclick="summarize()">Summarize Notes</button>
-        <button onclick="triage()">Generate Triage Questions</button>
-      </div>
-    </div>
+    <div class="wrapper">
+      <header>
+        <div>
+          <h1>Clinician Helper</h1>
+          <p class="subtitle">Transform unstructured clinical notes into clear summaries and triage prompts.</p>
+        </div>
+        <button class="toggle" id="themeToggle" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1.5m6.364 1.136-1.06 1.06M21 12h-1.5m-1.136 6.364-1.06-1.06M12 21v-1.5m-6.364-1.136 1.06-1.06M3 12h1.5m1.136-6.364 1.06 1.06M12 8.25a3.75 3.75 0 0 1 0 7.5 3.75 3.75 0 0 1 0-7.5Z" />
+          </svg>
+          <span id="toggleLabel">Light mode</span>
+        </button>
+      </header>
 
-    <div class="card">
-      <h3>Output</h3>
-      <pre id="out" style="white-space: pre-wrap"></pre>
+      <div class="card">
+        <h3>Clinical Input</h3>
+        <textarea id="notes" placeholder="Paste unstructured notes or patient call notes..."></textarea>
+        <p class="disclaimer">Disclaimer: This tool does not store protected health information (PHI). Any PHI included in submitted text is intentionally omitted from generated responses.</p>
+        <div class="row">
+          <button class="primary-btn" onclick="summarize()">Summarize Notes</button>
+          <button class="outline-btn" onclick="triage()">Generate Triage Questions</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Results</h3>
+        <pre id="out" style="white-space: pre-wrap"></pre>
+      </div>
+
+      <footer>
+        Built to assist clinicians with efficient documentation and triage support.
+      </footer>
     </div>
 
     <script>
+      const body = document.body;
+      const toggleButton = document.getElementById("themeToggle");
+      const toggleLabel = document.getElementById("toggleLabel");
+
+      function applyTheme(theme) {
+        if (theme === "dark") {
+          body.classList.add("dark");
+          toggleLabel.textContent = "Dark mode";
+        } else {
+          body.classList.remove("dark");
+          toggleLabel.textContent = "Light mode";
+        }
+      }
+
+      function toggleTheme() {
+        const nextTheme = body.classList.contains("dark") ? "light" : "dark";
+        localStorage.setItem("triage-theme", nextTheme);
+        applyTheme(nextTheme);
+      }
+
+      const storedTheme = localStorage.getItem("triage-theme");
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(storedTheme || (prefersDark ? "dark" : "light"));
+
+      toggleButton.addEventListener("click", toggleTheme);
+
       async function summarize() {
         const text = document.getElementById("notes").value.trim();
         if (!text) return;

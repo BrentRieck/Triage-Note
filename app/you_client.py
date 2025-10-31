@@ -17,43 +17,94 @@ class YouClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        payload: dict[str, object] = {
-            "agent_id": agent,
-            "input": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": content,
-                        }
-                    ],
-                }
-            ],
-        }
-        if stream:
-            payload["stream"] = True
+        def structured_payload() -> dict[str, object]:
+            base: dict[str, object] = {
+                "agent_id": agent,
+                "input": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": content,
+                            }
+                        ],
+                    }
+                ],
+            }
+            if stream:
+                base["stream"] = True
+            return base
+
+        def plain_payload() -> dict[str, object]:
+            base: dict[str, object] = {
+                "agent_id": agent,
+                "input": [
+                    {
+                        "role": "user",
+                        "content": content,
+                    }
+                ],
+            }
+            if stream:
+                base["stream"] = True
+            return base
+
+        async def post_with_payload(client: httpx.AsyncClient, payload: dict[str, object]):
+            resp = await client.post(YDC_AGENTS_URL, headers=headers, json=payload)
+            resp.raise_for_status()
+            return resp
+
+        payload_builders = (structured_payload, plain_payload)
+        last_error: Optional[httpx.HTTPStatusError] = None
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             if stream:
                 headers["Accept"] = "text/event-stream"
-                resp = await client.post(YDC_AGENTS_URL, headers=headers, json=payload)
-                resp.raise_for_status()
-                return resp
+                for build_payload in payload_builders:
+                    try:
+                        payload = build_payload()
+                        resp = await post_with_payload(client, payload)
+                        return resp
+                    except httpx.HTTPStatusError as exc:
+                        if exc.response.status_code != 422:
+                            raise
+                        last_error = exc
 
-            resp = await client.post(YDC_AGENTS_URL, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+                detail = last_error.response.text if last_error and last_error.response else ""
+                raise RuntimeError(f"You.com API error 422: {detail}")
+
+            for build_payload in payload_builders:
+                try:
+                    payload = build_payload()
+                    resp = await post_with_payload(client, payload)
+                    data = resp.json()
+                    break
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code != 422:
+                        raise
+                    last_error = exc
+            else:  # pragma: no cover - defensive
+                detail = last_error.response.text if last_error and last_error.response else ""
+                raise RuntimeError(f"You.com API error 422: {detail}")
 
         text = ""
         if isinstance(data, dict) and data.get("output"):
             for item in data["output"]:
+                if isinstance(item, str):
+                    text += item
+                    continue
+
                 if isinstance(item, dict):
                     if item.get("text"):
                         text += str(item["text"])
                         continue
 
                     contents = item.get("content")
+                    if isinstance(contents, str):
+                        text += contents
+                        continue
+
                     if isinstance(contents, list):
                         for piece in contents:
                             if (

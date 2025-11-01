@@ -7,10 +7,16 @@ YDC_AGENTS_URL = "https://api.you.com/v1/agents/runs"
 
 
 class YouClient:
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        *,
+        transport: Optional[httpx.AsyncBaseTransport] = None,
+    ) -> None:
         self.api_key = api_key or os.getenv("YOU_API_KEY")
         if not self.api_key:
             raise RuntimeError("Missing YOU_API_KEY")
+        self._transport = transport
 
     async def run_agent(self, agent: str, content: str, stream: bool = False):
         headers = {
@@ -58,7 +64,7 @@ class YouClient:
         payload_builders = (structured_payload, plain_payload)
         last_error: Optional[httpx.HTTPStatusError] = None
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=60.0, transport=self._transport) as client:
             if stream:
                 headers["Accept"] = "text/event-stream"
                 for build_payload in payload_builders:

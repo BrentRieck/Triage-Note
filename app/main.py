@@ -1,6 +1,8 @@
 import os
 
-from fastapi import FastAPI, HTTPException, Request
+from functools import lru_cache
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
@@ -13,7 +15,11 @@ AGENT_ID_TRIAGE = os.getenv("YOU_AGENT_TRIAGE_ID", "express")
 
 app = FastAPI(title="Clinician Helper")
 templates = Jinja2Templates(directory="app/templates")
-you_client = YouClient()
+
+
+@lru_cache(maxsize=1)
+def get_you_client() -> YouClient:
+    return YouClient()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -22,7 +28,9 @@ async def index(request: Request):
 
 
 @app.post("/api/summarize", response_model=SummarizeResponse)
-async def summarize(req: ModeRequest):
+async def summarize(
+    req: ModeRequest, you_client: YouClient = Depends(get_you_client)
+):
     stream = bool(req.stream)
     content = f"{SUMMARIZE_SYSTEM}\n\n---\nNOTES:\n{req.text}"
 
@@ -42,7 +50,7 @@ async def summarize(req: ModeRequest):
 
 
 @app.post("/api/triage", response_model=TriageResponse)
-async def triage(req: ModeRequest):
+async def triage(req: ModeRequest, you_client: YouClient = Depends(get_you_client)):
     stream = bool(req.stream)
     content = (
         f"{TRIAGE_SYSTEM}\n\n---\nCALL NOTES:\n{req.text}\n\n"

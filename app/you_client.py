@@ -19,7 +19,7 @@ class YouClient:
         }
         def structured_payload() -> dict[str, object]:
             base: dict[str, object] = {
-                "agent_id": agent,
+                "agent": agent,
                 "input": [
                     {
                         "role": "user",
@@ -38,7 +38,7 @@ class YouClient:
 
         def plain_payload() -> dict[str, object]:
             base: dict[str, object] = {
-                "agent_id": agent,
+                "agent": agent,
                 "input": [
                     {
                         "role": "user",

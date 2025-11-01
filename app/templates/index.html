@@ -143,6 +143,17 @@
         transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
 
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      button:disabled:hover {
+        transform: none;
+      }
+
       .primary-btn {
         background: var(--primary);
         color: white;
@@ -163,6 +174,10 @@
       .outline-btn:hover {
         background: rgba(37, 99, 235, 0.08);
         transform: translateY(-1px);
+      }
+
+      .result-actions {
+        margin-top: 16px;
       }
 
       pre {
@@ -236,6 +251,26 @@
       <div class="card">
         <h3>Results</h3>
         <pre id="out" style="white-space: pre-wrap"></pre>
+        <div class="row result-actions">
+          <button
+            class="outline-btn"
+            id="copySummaryBtn"
+            type="button"
+            onclick="copySummary()"
+            disabled
+          >
+            Copy Summary
+          </button>
+          <button
+            class="outline-btn"
+            id="copyQuestionsBtn"
+            type="button"
+            onclick="copyQuestions()"
+            disabled
+          >
+            Copy Questions
+          </button>
+        </div>
       </div>
 
       <footer>
@@ -247,6 +282,12 @@
       const body = document.body;
       const toggleButton = document.getElementById("themeToggle");
       const toggleLabel = document.getElementById("toggleLabel");
+      const outputEl = document.getElementById("out");
+      const copySummaryBtn = document.getElementById("copySummaryBtn");
+      const copyQuestionsBtn = document.getElementById("copyQuestionsBtn");
+
+      let lastSummary = "";
+      let lastQuestions = [];
 
       function applyTheme(theme) {
         if (theme === "dark") {
@@ -270,6 +311,54 @@
 
       toggleButton.addEventListener("click", toggleTheme);
 
+      function updateOutput(content) {
+        outputEl.textContent = content;
+      }
+
+      function resetResults() {
+        lastSummary = "";
+        lastQuestions = [];
+      }
+
+      function updateCopyButtons() {
+        copySummaryBtn.disabled = !lastSummary;
+        copyQuestionsBtn.disabled = !lastQuestions.length;
+      }
+
+      function showCopyFeedback(button, originalText) {
+        button.textContent = "Copied!";
+        setTimeout(() => {
+          button.textContent = originalText;
+          updateCopyButtons();
+        }, 2000);
+      }
+
+      async function copyToClipboard(content, button) {
+        if (!content) return;
+        if (!navigator.clipboard) {
+          console.warn("Clipboard API not available.");
+          return;
+        }
+
+        const originalText = button.textContent;
+        try {
+          await navigator.clipboard.writeText(content);
+          showCopyFeedback(button, originalText);
+        } catch (error) {
+          console.error("Failed to copy content", error);
+        }
+      }
+
+      function copySummary() {
+        copyToClipboard(lastSummary, copySummaryBtn);
+      }
+
+      function copyQuestions() {
+        copyToClipboard(lastQuestions.join("\n"), copyQuestionsBtn);
+      }
+
+      updateCopyButtons();
+
       async function summarize() {
         const text = document.getElementById("notes").value.trim();
         if (!text) return;
@@ -279,9 +368,15 @@
           body: JSON.stringify({ text })
         });
         const json = await res.json();
-        document.getElementById("out").textContent = res.ok
-          ? json.summary
-          : `Error: ${json.detail || "unknown"}`;
+        if (res.ok) {
+          lastSummary = json.summary || "";
+          lastQuestions = [];
+          updateOutput(lastSummary);
+        } else {
+          resetResults();
+          updateOutput(`Error: ${json.detail || "unknown"}`);
+        }
+        updateCopyButtons();
       }
 
       async function triage() {
@@ -293,9 +388,15 @@
           body: JSON.stringify({ text })
         });
         const json = await res.json();
-        document.getElementById("out").textContent = res.ok
-          ? (json.questions || []).map((q, i) => `${i + 1}. ${q}`).join("\n")
-          : `Error: ${json.detail || "unknown"}`;
+        if (res.ok) {
+          lastQuestions = Array.isArray(json.questions) ? json.questions : [];
+          lastSummary = "";
+          updateOutput(lastQuestions.join("\n"));
+        } else {
+          resetResults();
+          updateOutput(`Error: ${json.detail || "unknown"}`);
+        }
+        updateCopyButtons();
       }
     </script>
   </body>

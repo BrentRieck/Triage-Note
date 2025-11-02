@@ -141,6 +141,11 @@
         letter-spacing: 0.01em;
         cursor: pointer;
         transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        position: relative;
       }
 
       button:disabled {
@@ -176,6 +181,44 @@
         transform: translateY(-1px);
       }
 
+      .btn-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .spinner {
+        display: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: rgba(255, 255, 255, 0.95);
+        animation: spin 0.75s linear infinite;
+      }
+
+      .outline-btn .spinner {
+        border: 2px solid rgba(37, 99, 235, 0.35);
+        border-top-color: var(--primary);
+      }
+
+      button[data-loading="true"] .spinner {
+        display: inline-flex;
+      }
+
+      button[data-loading="true"] .btn-label {
+        opacity: 0.9;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
       .result-actions {
         margin-top: 16px;
       }
@@ -195,6 +238,52 @@
 
       body.dark pre {
         background: rgba(15, 23, 42, 0.35);
+      }
+
+      .result-display {
+        position: relative;
+      }
+
+      .result-display[data-loading="true"] pre {
+        visibility: hidden;
+      }
+
+      .skeleton {
+        display: none;
+        width: 100%;
+        min-height: 160px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: linear-gradient(
+          90deg,
+          rgba(148, 163, 184, 0.08) 25%,
+          rgba(148, 163, 184, 0.16) 37%,
+          rgba(148, 163, 184, 0.08) 63%
+        );
+        background-size: 400% 100%;
+        animation: shimmer 1.4s ease-in-out infinite;
+      }
+
+      body.dark .skeleton {
+        background: linear-gradient(
+          90deg,
+          rgba(15, 23, 42, 0.35) 25%,
+          rgba(59, 130, 246, 0.15) 37%,
+          rgba(15, 23, 42, 0.35) 63%
+        );
+      }
+
+      .result-display[data-loading="true"] .skeleton {
+        display: block;
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: 100% 0;
+        }
+        100% {
+          background-position: -100% 0;
+        }
       }
 
       .disclaimer {
@@ -243,14 +332,29 @@
         <textarea id="notes" placeholder="Paste unstructured notes or patient call notes..."></textarea>
         <p class="disclaimer">Disclaimer: This tool does not store protected health information (PHI). Any PHI included in submitted text is intentionally omitted from generated responses.</p>
         <div class="row">
-          <button class="primary-btn" onclick="summarize()">Summarize Notes</button>
-          <button class="outline-btn" onclick="triage()">Generate Triage Questions</button>
+          <button class="primary-btn" id="summarizeBtn" type="button" onclick="summarize()" aria-busy="false">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-label">Summarize Notes</span>
+          </button>
+          <button class="outline-btn" id="triageBtn" type="button" onclick="triage()" aria-busy="false">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-label">Generate Triage Questions</span>
+          </button>
         </div>
       </div>
 
       <div class="card">
         <h3>Results</h3>
-        <pre id="out" style="white-space: pre-wrap"></pre>
+        <div
+          class="result-display"
+          id="resultDisplay"
+          role="status"
+          aria-live="polite"
+          aria-busy="false"
+        >
+          <pre id="out" style="white-space: pre-wrap"></pre>
+          <div class="skeleton" id="resultSkeleton" aria-hidden="true"></div>
+        </div>
         <div class="row result-actions">
           <button
             class="outline-btn"
@@ -285,9 +389,14 @@
       const outputEl = document.getElementById("out");
       const copySummaryBtn = document.getElementById("copySummaryBtn");
       const copyQuestionsBtn = document.getElementById("copyQuestionsBtn");
+      const summarizeBtn = document.getElementById("summarizeBtn");
+      const triageBtn = document.getElementById("triageBtn");
+      const resultDisplay = document.getElementById("resultDisplay");
 
       let lastSummary = "";
       let lastQuestions = [];
+      let isSummarizing = false;
+      let isGenerating = false;
 
       function applyTheme(theme) {
         if (theme === "dark") {
@@ -321,8 +430,9 @@
       }
 
       function updateCopyButtons() {
-        copySummaryBtn.disabled = !lastSummary;
-        copyQuestionsBtn.disabled = !lastQuestions.length;
+        const loading = isSummarizing || isGenerating;
+        copySummaryBtn.disabled = loading || !lastSummary;
+        copyQuestionsBtn.disabled = loading || !lastQuestions.length;
       }
 
       function showCopyFeedback(button, originalText) {
@@ -359,44 +469,90 @@
 
       updateCopyButtons();
 
+      function setLoadingState(type, value) {
+        if (type === "summarize") {
+          isSummarizing = value;
+        } else {
+          isGenerating = value;
+        }
+
+        const anyLoading = isSummarizing || isGenerating;
+
+        summarizeBtn.disabled = anyLoading;
+        triageBtn.disabled = anyLoading;
+
+        summarizeBtn.setAttribute("data-loading", isSummarizing ? "true" : "false");
+        triageBtn.setAttribute("data-loading", isGenerating ? "true" : "false");
+
+        summarizeBtn.setAttribute("aria-busy", isSummarizing ? "true" : "false");
+        triageBtn.setAttribute("aria-busy", isGenerating ? "true" : "false");
+
+        resultDisplay.setAttribute("aria-busy", anyLoading ? "true" : "false");
+        resultDisplay.setAttribute("data-loading", anyLoading ? "true" : "false");
+
+        if (anyLoading) {
+          outputEl.textContent = "Loading…";
+        }
+
+        updateCopyButtons();
+      }
+
       async function summarize() {
         const text = document.getElementById("notes").value.trim();
-        if (!text) return;
-        const res = await fetch("/api/summarize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text })
-        });
-        const json = await res.json();
-        if (res.ok) {
-          lastSummary = json.summary || "";
-          lastQuestions = [];
-          updateOutput(lastSummary);
-        } else {
+        if (!text || isSummarizing || isGenerating) return;
+
+        setLoadingState("summarize", true);
+
+        try {
+          const res = await fetch("/api/summarize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          });
+          const json = await res.json();
+          if (res.ok) {
+            lastSummary = json.summary || "";
+            lastQuestions = [];
+            updateOutput(lastSummary);
+          } else {
+            resetResults();
+            updateOutput(`Error: ${json.detail || "unknown"}`);
+          }
+        } catch (error) {
           resetResults();
-          updateOutput(`Error: ${json.detail || "unknown"}`);
+          updateOutput(`Error: ${error.message || "unknown"}`);
+        } finally {
+          setLoadingState("summarize", false);
         }
-        updateCopyButtons();
       }
 
       async function triage() {
         const text = document.getElementById("notes").value.trim();
-        if (!text) return;
-        const res = await fetch("/api/triage", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text })
-        });
-        const json = await res.json();
-        if (res.ok) {
-          lastQuestions = Array.isArray(json.questions) ? json.questions : [];
-          lastSummary = "";
-          updateOutput(lastQuestions.join("\n"));
-        } else {
+        if (!text || isSummarizing || isGenerating) return;
+
+        setLoadingState("triage", true);
+
+        try {
+          const res = await fetch("/api/triage", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          });
+          const json = await res.json();
+          if (res.ok) {
+            lastQuestions = Array.isArray(json.questions) ? json.questions : [];
+            lastSummary = "";
+            updateOutput(lastQuestions.join("\n"));
+          } else {
+            resetResults();
+            updateOutput(`Error: ${json.detail || "unknown"}`);
+          }
+        } catch (error) {
           resetResults();
-          updateOutput(`Error: ${json.detail || "unknown"}`);
+          updateOutput(`Error: ${error.message || "unknown"}`);
+        } finally {
+          setLoadingState("triage", false);
         }
-        updateCopyButtons();
       }
     </script>
   </body>

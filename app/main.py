@@ -6,12 +6,13 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
-from app.prompts import SUMMARIZE_SYSTEM, TRIAGE_SYSTEM
-from app.schemas import ModeRequest, SummarizeResponse, TriageResponse
+from app.prompts import REPLY_SYSTEM, SUMMARIZE_SYSTEM, TRIAGE_SYSTEM
+from app.schemas import ModeRequest, ReplyResponse, SummarizeResponse, TriageResponse
 from app.you_client import YouClient
 
 AGENT_ID_SUMMARIZE = os.getenv("YOU_AGENT_SUMMARIZE_ID", "express")
 AGENT_ID_TRIAGE = os.getenv("YOU_AGENT_TRIAGE_ID", "express")
+AGENT_ID_REPLY = os.getenv("YOU_AGENT_REPLY_ID", "express")
 
 app = FastAPI(title="Clinician Helper")
 templates = Jinja2Templates(directory="app/templates")
@@ -68,6 +69,26 @@ async def triage(req: ModeRequest, you_client: YouClient = Depends(get_you_clien
 
         questions = [line.strip(" -") for line in text.splitlines() if line.strip()]
         return TriageResponse(questions=questions or [text])
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - external service errors
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/reply", response_model=ReplyResponse)
+async def reply(req: ModeRequest, you_client: YouClient = Depends(get_you_client)):
+    stream = bool(req.stream)
+    content = f"{REPLY_SYSTEM}\n\n---\nPATIENT MESSAGE:\n{req.text}"
+
+    try:
+        if stream:
+            response = await you_client.run_agent(AGENT_ID_REPLY, content, stream=True)
+            return StreamingResponse(response.aiter_text(), media_type="text/event-stream")
+
+        text = await you_client.run_agent(AGENT_ID_REPLY, content, stream=False)
+        if not text:
+            raise HTTPException(status_code=502, detail="Empty response from LLM")
+        return ReplyResponse(reply=text)
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - external service errors

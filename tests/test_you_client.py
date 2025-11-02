@@ -73,3 +73,30 @@ async def test_run_agent_concatenates_complex_output():
     result = await client.run_agent("express", "hello", stream=False)
 
     assert result == "Direct text chunk string content nested pieces"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_handles_nested_response_payload():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "response": {
+                    "output": [
+                        {
+                            "content": [
+                                {"type": "output_text", "text": "Drafting "},
+                                {"type": "output_text", "text": "patient reply"},
+                            ]
+                        }
+                    ]
+                }
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = YouClient(api_key="test", transport=transport)
+
+    result = await client.run_agent("express", "hello", stream=False)
+
+    assert result == "Drafting patient reply"

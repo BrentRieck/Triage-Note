@@ -1,9 +1,35 @@
 import os
+from collections.abc import Mapping, Sequence
 from typing import Optional
 
 import httpx
 
 YDC_AGENTS_URL = "https://api.you.com/v1/agents/runs"
+
+
+def _extract_text(data: object) -> str:
+    fragments: list[str] = []
+    skip_keys = {"type", "role", "id", "name", "agent"}
+
+    def visit(node: object) -> None:
+        if node is None:
+            return
+        if isinstance(node, str):
+            fragments.append(node)
+            return
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                if key in {"text", "output_text"} and isinstance(value, str):
+                    fragments.append(value)
+                elif key not in skip_keys:
+                    visit(value)
+            return
+        if isinstance(node, Sequence) and not isinstance(node, (str, bytes, bytearray)):
+            for item in node:
+                visit(item)
+
+    visit(data)
+    return "".join(fragments).strip()
 
 
 class YouClient:
@@ -95,28 +121,19 @@ class YouClient:
                 raise RuntimeError(f"You.com API error 422: {detail}")
 
         text = ""
-        if isinstance(data, dict) and data.get("output"):
-            for item in data["output"]:
-                if isinstance(item, str):
-                    text += item
-                    continue
+        if isinstance(data, dict):
+            candidates = [
+                data.get("output"),
+                data.get("response"),
+                data.get("output_text"),
+                data.get("data"),
+            ]
+            for candidate in candidates:
+                text = _extract_text(candidate)
+                if text:
+                    break
 
-                if isinstance(item, dict):
-                    if item.get("text"):
-                        text += str(item["text"])
-                        continue
+        if not text:
+            text = _extract_text(data)
 
-                    contents = item.get("content")
-                    if isinstance(contents, str):
-                        text += contents
-                        continue
-
-                    if isinstance(contents, list):
-                        for piece in contents:
-                            if (
-                                isinstance(piece, dict)
-                                and piece.get("text")
-                                and piece.get("type") in {"output_text", "input_text", "text"}
-                            ):
-                                text += str(piece["text"])
-        return text.strip()
+        return text

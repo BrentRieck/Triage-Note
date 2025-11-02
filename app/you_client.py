@@ -3,7 +3,7 @@ from typing import Optional
 
 import httpx
 
-YDC_AGENTS_URL = "https://api.you.com/v1/agents/runs"
+YDC_AGENTS_URL = "https://api-you.com/v1/agents/runs"
 
 
 class YouClient:

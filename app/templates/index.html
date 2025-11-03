@@ -340,10 +340,6 @@
             <span class="spinner" aria-hidden="true"></span>
             <span class="btn-label">Generate Triage Questions</span>
           </button>
-          <button class="outline-btn" id="replyBtn" type="button" onclick="generateReply()" aria-busy="false">
-            <span class="spinner" aria-hidden="true"></span>
-            <span class="btn-label">Draft Patient Reply</span>
-          </button>
         </div>
       </div>
 
@@ -378,15 +374,6 @@
           >
             Copy Questions
           </button>
-          <button
-            class="outline-btn"
-            id="copyReplyBtn"
-            type="button"
-            onclick="copyReply()"
-            disabled
-          >
-            Copy Reply
-          </button>
         </div>
       </div>
 
@@ -402,18 +389,14 @@
       const outputEl = document.getElementById("out");
       const copySummaryBtn = document.getElementById("copySummaryBtn");
       const copyQuestionsBtn = document.getElementById("copyQuestionsBtn");
-      const copyReplyBtn = document.getElementById("copyReplyBtn");
       const summarizeBtn = document.getElementById("summarizeBtn");
       const triageBtn = document.getElementById("triageBtn");
-      const replyBtn = document.getElementById("replyBtn");
       const resultDisplay = document.getElementById("resultDisplay");
 
       let lastSummary = "";
       let lastQuestions = [];
-      let lastReply = "";
       let isSummarizing = false;
-      let isGeneratingQuestions = false;
-      let isGeneratingReply = false;
+      let isGenerating = false;
 
       function applyTheme(theme) {
         if (theme === "dark") {
@@ -444,14 +427,12 @@
       function resetResults() {
         lastSummary = "";
         lastQuestions = [];
-        lastReply = "";
       }
 
       function updateCopyButtons() {
-        const loading = isSummarizing || isGeneratingQuestions || isGeneratingReply;
+        const loading = isSummarizing || isGenerating;
         copySummaryBtn.disabled = loading || !lastSummary;
         copyQuestionsBtn.disabled = loading || !lastQuestions.length;
-        copyReplyBtn.disabled = loading || !lastReply;
       }
 
       function showCopyFeedback(button, originalText) {
@@ -486,34 +467,25 @@
         copyToClipboard(lastQuestions.join("\n"), copyQuestionsBtn);
       }
 
-      function copyReply() {
-        copyToClipboard(lastReply, copyReplyBtn);
-      }
-
       updateCopyButtons();
 
       function setLoadingState(type, value) {
         if (type === "summarize") {
           isSummarizing = value;
-        } else if (type === "triage") {
-          isGeneratingQuestions = value;
         } else {
-          isGeneratingReply = value;
+          isGenerating = value;
         }
 
-        const anyLoading = isSummarizing || isGeneratingQuestions || isGeneratingReply;
+        const anyLoading = isSummarizing || isGenerating;
 
         summarizeBtn.disabled = anyLoading;
         triageBtn.disabled = anyLoading;
-        replyBtn.disabled = anyLoading;
 
         summarizeBtn.setAttribute("data-loading", isSummarizing ? "true" : "false");
-        triageBtn.setAttribute("data-loading", isGeneratingQuestions ? "true" : "false");
-        replyBtn.setAttribute("data-loading", isGeneratingReply ? "true" : "false");
+        triageBtn.setAttribute("data-loading", isGenerating ? "true" : "false");
 
         summarizeBtn.setAttribute("aria-busy", isSummarizing ? "true" : "false");
-        triageBtn.setAttribute("aria-busy", isGeneratingQuestions ? "true" : "false");
-        replyBtn.setAttribute("aria-busy", isGeneratingReply ? "true" : "false");
+        triageBtn.setAttribute("aria-busy", isGenerating ? "true" : "false");
 
         resultDisplay.setAttribute("aria-busy", anyLoading ? "true" : "false");
         resultDisplay.setAttribute("data-loading", anyLoading ? "true" : "false");
@@ -527,7 +499,7 @@
 
       async function summarize() {
         const text = document.getElementById("notes").value.trim();
-        if (!text || isSummarizing || isGeneratingQuestions || isGeneratingReply) return;
+        if (!text || isSummarizing || isGenerating) return;
 
         setLoadingState("summarize", true);
 
@@ -541,7 +513,6 @@
           if (res.ok) {
             lastSummary = json.summary || "";
             lastQuestions = [];
-            lastReply = "";
             updateOutput(lastSummary);
           } else {
             resetResults();
@@ -557,7 +528,7 @@
 
       async function triage() {
         const text = document.getElementById("notes").value.trim();
-        if (!text || isSummarizing || isGeneratingQuestions || isGeneratingReply) return;
+        if (!text || isSummarizing || isGenerating) return;
 
         setLoadingState("triage", true);
 
@@ -571,7 +542,6 @@
           if (res.ok) {
             lastQuestions = Array.isArray(json.questions) ? json.questions : [];
             lastSummary = "";
-            lastReply = "";
             updateOutput(lastQuestions.join("\n"));
           } else {
             resetResults();
@@ -582,36 +552,6 @@
           updateOutput(`Error: ${error.message || "unknown"}`);
         } finally {
           setLoadingState("triage", false);
-        }
-      }
-
-      async function generateReply() {
-        const text = document.getElementById("notes").value.trim();
-        if (!text || isSummarizing || isGeneratingQuestions || isGeneratingReply) return;
-
-        setLoadingState("reply", true);
-
-        try {
-          const res = await fetch("/api/reply", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
-          });
-          const json = await res.json();
-          if (res.ok) {
-            lastReply = json.reply || "";
-            lastSummary = "";
-            lastQuestions = [];
-            updateOutput(lastReply);
-          } else {
-            resetResults();
-            updateOutput(`Error: ${json.detail || "unknown"}`);
-          }
-        } catch (error) {
-          resetResults();
-          updateOutput(`Error: ${error.message || "unknown"}`);
-        } finally {
-          setLoadingState("reply", false);
         }
       }
     </script>

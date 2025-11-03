@@ -14,7 +14,3 @@ class SummarizeResponse(BaseModel):
 
 class TriageResponse(BaseModel):
     questions: list[str]
-
-
-class ReplyResponse(BaseModel):
-    reply: str

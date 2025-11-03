@@ -1,5 +1,5 @@
-import httpx
 import pytest
+import httpx
 
 from app.main import app, get_you_client
 
@@ -60,35 +60,3 @@ async def test_triage_splits_lines_into_questions():
     assert resp.json() == {
         "questions": ["1. Question one", "2. Question two"],
     }
-
-
-@pytest.mark.asyncio
-async def test_reply_returns_message():
-    stub = StubYouClient(response="Patient reply text")
-    app.dependency_overrides[get_you_client] = lambda: stub
-
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        resp = await client.post("/api/reply", json={"text": "message", "stream": False})
-
-    app.dependency_overrides.clear()
-
-    assert resp.status_code == 200
-    assert resp.json() == {"reply": "Patient reply text"}
-
-
-@pytest.mark.asyncio
-async def test_reply_returns_502_on_empty_response():
-    stub = StubYouClient(response="")
-    app.dependency_overrides[get_you_client] = lambda: stub
-
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        resp = await client.post("/api/reply", json={"text": "message", "stream": False})
-
-    app.dependency_overrides.clear()
-
-    assert resp.status_code == 502
-    assert resp.json()["detail"] == "Empty response from LLM"

@@ -1,10 +1,10 @@
 import pytest
 import httpx
 
-from app.main import app, get_you_client
+from app.main import app, get_openai_client
 
 
-class StubYouClient:
+class StubOpenAIClient:
     def __init__(self, response: str):
         self.response = response
 
@@ -14,8 +14,8 @@ class StubYouClient:
 
 @pytest.mark.asyncio
 async def test_summarize_returns_summary():
-    stub = StubYouClient(response="Summarized text")
-    app.dependency_overrides[get_you_client] = lambda: stub
+    stub = StubOpenAIClient(response="Summarized text")
+    app.dependency_overrides[get_openai_client] = lambda: stub
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -30,8 +30,8 @@ async def test_summarize_returns_summary():
 
 @pytest.mark.asyncio
 async def test_summarize_returns_502_on_empty_response():
-    stub = StubYouClient(response="")
-    app.dependency_overrides[get_you_client] = lambda: stub
+    stub = StubOpenAIClient(response="")
+    app.dependency_overrides[get_openai_client] = lambda: stub
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -46,8 +46,8 @@ async def test_summarize_returns_502_on_empty_response():
 
 @pytest.mark.asyncio
 async def test_triage_splits_lines_into_questions():
-    stub = StubYouClient(response="1. Question one\n2. Question two\n")
-    app.dependency_overrides[get_you_client] = lambda: stub
+    stub = StubOpenAIClient(response="1. Question one\n2. Question two\n")
+    app.dependency_overrides[get_openai_client] = lambda: stub
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"

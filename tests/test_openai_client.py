@@ -44,7 +44,7 @@ async def test_run_agent_builds_summarize_messages(monkeypatch: pytest.MonkeyPat
     assert result == "Summarized"
     assert captured["url"] == OPENAI_CHAT_COMPLETIONS_URL
     payload = captured["payload"]
-    assert payload["model"] == "gpt-4"
+    assert payload["model"] == "gpt-3.5-turbo"
     assert payload["messages"][0] == {"role": "system", "content": SUMMARIZE_SYSTEM}
     assert payload["messages"][1] == {"role": "user", "content": "Patient notes"}
 
@@ -124,3 +124,34 @@ async def test_run_agent_raises_friendly_error_on_exhausted_retries():
         await client.run_agent("summarize", "Patient", stream=False)
 
     assert "rate limit" in str(excinfo.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_run_agent_raises_on_invalid_api_key():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401)
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAIClient(api_key="test", transport=transport, max_retries=0)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        await client.run_agent("summarize", "Patient", stream=False)
+
+    message = str(excinfo.value)
+    assert "api key" in message.lower()
+    assert "permissions" in message.lower()
+
+
+@pytest.mark.asyncio
+async def test_run_agent_raises_on_request_error():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("boom", request=request)
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAIClient(api_key="test", transport=transport, max_retries=0)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        await client.run_agent("summarize", "Patient", stream=False)
+
+    message = str(excinfo.value)
+    assert "unable to reach openai api" in message.lower()

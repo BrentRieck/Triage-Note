@@ -141,7 +141,9 @@ class OpenAIClient:
                 await client.aclose()
                 last_error = exc
                 if attempts > self._max_retries:
-                    raise RuntimeError("Failed to reach OpenAI API") from exc
+                    raise RuntimeError(
+                        "Unable to reach OpenAI API. Check network connectivity or outbound restrictions."
+                    ) from exc
                 await self._sleep(self._retry_delay(None, attempts))
             except Exception:
                 await client.aclose()
@@ -170,15 +172,22 @@ class OpenAIClient:
             return "OpenAI API rate limit exceeded. Please try again shortly."
         if 500 <= status_code < 600:
             return "OpenAI API is currently unavailable. Please retry later."
-        return "Unexpected OpenAI API error."
+        if status_code in {401, 403}:
+            return (
+                "OpenAI API key is invalid or missing required permissions. Verify OPENAI_API_KEY and model access."
+            )
+        if status_code == 404:
+            return "OpenAI resource not found. Confirm the model name and endpoint configuration."
+        return f"Unexpected OpenAI API error (status {status_code})."
 
     def _resolve_model(self, agent: str) -> str:
         agent_key = agent.lower()
+        default_model = os.getenv("OPENAI_MODEL_DEFAULT")
         if agent_key == "summarize":
-            return os.getenv("OPENAI_MODEL_SUMMARIZE", "gpt-4")
+            return os.getenv("OPENAI_MODEL_SUMMARIZE") or default_model or "gpt-3.5-turbo"
         if agent_key == "triage":
-            return os.getenv("OPENAI_MODEL_TRIAGE", "gpt-4")
-        return os.getenv("OPENAI_MODEL_DEFAULT", "gpt-4")
+            return os.getenv("OPENAI_MODEL_TRIAGE") or default_model or "gpt-3.5-turbo"
+        return default_model or "gpt-3.5-turbo"
 
     def _build_messages(self, agent: str, user_content: str):
         agent_key = agent.lower()

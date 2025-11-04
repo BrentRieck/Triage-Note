@@ -83,3 +83,44 @@ def test_client_requires_api_key(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         OpenAIClient(api_key=None)
+
+
+@pytest.mark.asyncio
+async def test_run_agent_retries_on_rate_limit(monkeypatch: pytest.MonkeyPatch):
+    attempts: list[int] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        attempts.append(1)
+        if len(attempts) == 1:
+            return httpx.Response(429, headers={"Retry-After": "0"})
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "Recovered"}}]},
+        )
+
+    async def fake_sleep(self, seconds: float) -> None:  # type: ignore[override]
+        return None
+
+    monkeypatch.setattr(OpenAIClient, "_sleep", fake_sleep, raising=False)
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAIClient(api_key="test", transport=transport, backoff_base=0.0)
+
+    result = await client.run_agent("summarize", "Patient", stream=False)
+
+    assert result == "Recovered"
+    assert len(attempts) == 2
+
+
+@pytest.mark.asyncio
+async def test_run_agent_raises_friendly_error_on_exhausted_retries():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429)
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAIClient(api_key="test", transport=transport, max_retries=0)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        await client.run_agent("summarize", "Patient", stream=False)
+
+    assert "rate limit" in str(excinfo.value).lower()

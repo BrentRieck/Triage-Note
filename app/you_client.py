@@ -3,7 +3,7 @@ from typing import Optional
 
 import httpx
 
-YDC_AGENTS_URL = "https://api.you.com/v1/agents/runs"
+YDC_AGENTS_URL = "https://api-you.com/v1/agents/runs"
 
 
 class YouClient:
@@ -23,6 +23,10 @@ class YouClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        response_mode: dict[str, object] = {
+            "type": "streaming" if stream else "blocking",
+        }
+
         def structured_payload() -> dict[str, object]:
             base: dict[str, object] = {
                 "agent": agent,
@@ -37,6 +41,7 @@ class YouClient:
                         ],
                     }
                 ],
+                "response_mode": response_mode,
             }
             if stream:
                 base["stream"] = True
@@ -51,6 +56,7 @@ class YouClient:
                         "content": content,
                     }
                 ],
+                "response_mode": response_mode,
             }
             if stream:
                 base["stream"] = True
@@ -94,29 +100,31 @@ class YouClient:
                 detail = last_error.response.text if last_error and last_error.response else ""
                 raise RuntimeError(f"You.com API error 422: {detail}")
 
-        text = ""
-        if isinstance(data, dict) and data.get("output"):
-            for item in data["output"]:
-                if isinstance(item, str):
-                    text += item
-                    continue
+        def append_text(acc: list[str], value: object) -> None:
+            if isinstance(value, str):
+                acc.append(value)
+            elif isinstance(value, dict):
+                if isinstance(value.get("text"), str):
+                    acc.append(str(value["text"]))
 
-                if isinstance(item, dict):
-                    if item.get("text"):
-                        text += str(item["text"])
-                        continue
+                # Nested output_text arrays from You.com custom agent API
+                if isinstance(value.get("output_text"), list):
+                    for item in value["output_text"]:
+                        append_text(acc, item)
 
-                    contents = item.get("content")
-                    if isinstance(contents, str):
-                        text += contents
-                        continue
+                # Generic content key can be a string, dict, or list.
+                if "content" in value:
+                    append_text(acc, value["content"])
 
-                    if isinstance(contents, list):
-                        for piece in contents:
-                            if (
-                                isinstance(piece, dict)
-                                and piece.get("text")
-                                and piece.get("type") in {"output_text", "input_text", "text"}
-                            ):
-                                text += str(piece["text"])
-        return text.strip()
+                # Some responses are nested under a "run" or "output" object.
+                for key in ("output", "run", "response"):
+                    if key in value:
+                        append_text(acc, value[key])
+            elif isinstance(value, list):
+                for item in value:
+                    append_text(acc, item)
+
+        text_parts: list[str] = []
+        append_text(text_parts, data)
+
+        return "".join(part for part in text_parts if isinstance(part, str)).strip()

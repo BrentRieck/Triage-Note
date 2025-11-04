@@ -1,18 +1,19 @@
 # Clinician Helper
 
-FastAPI web application that helps healthcare professionals summarize clinical notes and draft telephone triage question lists using the OpenAI Chat Completions API.
+FastAPI web application that helps healthcare professionals summarize clinical notes, draft telephone triage question lists, and compose patient-friendly replies using the You.com Agents API.
 
 ## Features
 
 - **Summarize Notes:** Convert messy, unstructured clinical notes into concise professional documentation.
 - **Triage Questions:** Turn patient call transcripts into prioritized triage question checklists.
+- **Patient Replies:** Generate empathetic, clinically appropriate responses clinicians can send back to patients.
 - Minimal HTML UI for quick testing and REST API endpoints for integration.
 
 ## Prerequisites
 
 - Python 3.11+
-- OpenAI API key (`OPENAI_API_KEY`).
-- Optional: Custom model overrides for summarization (`OPENAI_MODEL_SUMMARIZE`) and triage (`OPENAI_MODEL_TRIAGE`). Defaults use GPT-4.
+- You.com Agents API key (`YOU_API_KEY`).
+- Optional: You.com custom agent IDs for summarization, triage, and patient reply modes.
 
 ## Local Development
 
@@ -20,10 +21,11 @@ FastAPI web application that helps healthcare professionals summarize clinical n
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export OPENAI_API_KEY=your_openai_key
-# Optional overrides if you prefer specific models
-export OPENAI_MODEL_SUMMARIZE=gpt-4o-mini
-export OPENAI_MODEL_TRIAGE=gpt-4o-mini
+export YOU_API_KEY=your_you_com_key
+# Optional if you created custom agents in You.com UI
+export YOU_AGENT_SUMMARIZE_ID=agent_id_for_summaries
+export YOU_AGENT_TRIAGE_ID=agent_id_for_triage
+export YOU_AGENT_REPLY_ID=agent_id_for_replies
 uvicorn app.main:app --reload
 ```
 
@@ -33,6 +35,7 @@ Visit http://127.0.0.1:8000 to use the UI.
 
 - `POST /api/summarize` → `{ "text": "..." }` → `{ "summary": "..." }`
 - `POST /api/triage` → `{ "text": "..." }` → `{ "questions": ["..."] }`
+- `POST /api/reply` → `{ "text": "..." }` → `{ "reply": "..." }`
 
 Both endpoints accept an optional `stream` boolean flag to request server-sent event (SSE) responses (UI currently uses non-streaming mode).
 
@@ -52,17 +55,23 @@ services:
 
 Set the following environment variables in Render (marked as `sync: false` in the manifest so they are provided via the dashboard):
 
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL_SUMMARIZE` (optional)
-- `OPENAI_MODEL_TRIAGE` (optional)
+- `YOU_API_KEY`
+- `YOU_AGENT_SUMMARIZE_ID` (optional)
+- `YOU_AGENT_TRIAGE_ID` (optional)
+- `YOU_AGENT_REPLY_ID` (optional)
 
-For environments subject to HIPAA or similar requirements, deploy into a HIPAA-enabled Render workspace and enable data-handling safeguards for your OpenAI account (e.g., enterprise privacy controls).
+For environments subject to HIPAA or similar requirements, deploy into a HIPAA-enabled Render workspace and enable privacy protections within You.com (e.g., Zero Data Retention) as needed.
 
-## Prompt Engineering
+## Creating You.com Agents (Recommended)
 
-System prompts for summarization and triage live in `app/prompts.py`. The OpenAI client injects these automatically before sending user text, ensuring consistent behavior across local development and deployment.
+1. In the You.com UI, create three custom agents:
+   - **Clinical Note Summarizer** – use the instructions from `SUMMARIZE_SYSTEM`.
+   - **Telephone Triage Question Builder** – use the instructions from `TRIAGE_SYSTEM`.
+   - **Patient Message Reply Assistant** – use the instructions from `REPLY_SYSTEM`.
+2. Grab each agent's ID and configure the `YOU_AGENT_SUMMARIZE_ID`, `YOU_AGENT_TRIAGE_ID`, and `YOU_AGENT_REPLY_ID` environment variables.
+3. The app falls back to the Express agent with inline instructions if agent IDs are not supplied.
 
 ## Security Notes
 
 - Never commit API keys. Use environment variables locally and in deployment.
-- If handling PHI, ensure the infrastructure (Render workspace, logging, storage) complies with relevant regulations and enable available privacy controls in your OpenAI account.
+- If handling PHI, ensure the infrastructure (Render workspace, logging, storage) complies with relevant regulations and enable available privacy controls in You.com.

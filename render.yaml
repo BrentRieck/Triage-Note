@@ -7,9 +7,11 @@ services:
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     autoDeploy: true
     envVars:
-      - key: OPENAI_API_KEY
+      - key: YOU_API_KEY
         sync: false
-      - key: OPENAI_MODEL_SUMMARIZE
+      - key: YOU_AGENT_SUMMARIZE_ID
         sync: false
-      - key: OPENAI_MODEL_TRIAGE
+      - key: YOU_AGENT_TRIAGE_ID
+        sync: false
+      - key: YOU_AGENT_REPLY_ID
         sync: false

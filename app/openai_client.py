@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from collections.abc import AsyncIterator
@@ -52,12 +53,16 @@ class OpenAIClient:
         *,
         transport: Optional[httpx.AsyncBaseTransport] = None,
         timeout: float = 60.0,
+        max_retries: int = 3,
+        backoff_base: float = 0.5,
     ) -> None:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise RuntimeError("Missing OPENAI_API_KEY")
         self._transport = transport
         self._timeout = timeout
+        self._max_retries = max_retries
+        self._backoff_base = backoff_base
 
     async def run_agent(self, agent: str, content: str, stream: bool = False):
         headers = {
@@ -71,29 +76,20 @@ class OpenAIClient:
         }
 
         if stream:
-            client = httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
-            try:
-                payload["stream"] = True
-                headers["Accept"] = "text/event-stream"
-                response = await client.post(
-                    OPENAI_CHAT_COMPLETIONS_URL,
-                    headers=headers,
-                    json=payload,
-                )
-                response.raise_for_status()
-                return OpenAIStreamWrapper(response, client)
-            except Exception:
-                await client.aclose()
-                raise
-
-        async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
-            response = await client.post(
-                OPENAI_CHAT_COMPLETIONS_URL,
+            payload["stream"] = True
+            headers["Accept"] = "text/event-stream"
+            client, response = await self._request_with_retry(
                 headers=headers,
-                json=payload,
+                payload=payload,
+                expect_stream=True,
             )
-            response.raise_for_status()
-            data = response.json()
+            return OpenAIStreamWrapper(response, client)
+
+        data = await self._request_with_retry(
+            headers=headers,
+            payload=payload,
+            expect_stream=False,
+        )
 
         if not isinstance(data, dict):
             raise RuntimeError("Unexpected OpenAI response format")
@@ -109,6 +105,72 @@ class OpenAIClient:
                     text.append(str(content_piece))
 
         return "".join(text).strip()
+
+    async def _request_with_retry(
+        self,
+        *,
+        headers: dict[str, str],
+        payload: dict,
+        expect_stream: bool,
+    ):
+        attempts = 0
+        last_error: Exception | None = None
+        while attempts <= self._max_retries:
+            attempts += 1
+            client = httpx.AsyncClient(timeout=self._timeout, transport=self._transport)
+            try:
+                response = await client.post(
+                    OPENAI_CHAT_COMPLETIONS_URL,
+                    headers=headers,
+                    json=payload,
+                )
+                response.raise_for_status()
+                if expect_stream:
+                    return client, response
+                data = response.json()
+                await client.aclose()
+                return data
+            except httpx.HTTPStatusError as exc:
+                await client.aclose()
+                last_error = exc
+                status_code = exc.response.status_code
+                if not self._should_retry(status_code) or attempts > self._max_retries:
+                    raise RuntimeError(self._format_error(status_code)) from exc
+                await self._sleep(self._retry_delay(exc.response.headers.get("Retry-After"), attempts))
+            except httpx.RequestError as exc:
+                await client.aclose()
+                last_error = exc
+                if attempts > self._max_retries:
+                    raise RuntimeError("Failed to reach OpenAI API") from exc
+                await self._sleep(self._retry_delay(None, attempts))
+            except Exception:
+                await client.aclose()
+                raise
+
+        if last_error:
+            raise RuntimeError("Failed to contact OpenAI API") from last_error
+        raise RuntimeError("Failed to contact OpenAI API")
+
+    def _should_retry(self, status_code: int) -> bool:
+        return status_code == 429 or 500 <= status_code < 600
+
+    def _retry_delay(self, retry_after: Optional[str], attempts: int) -> float:
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                pass
+        return self._backoff_base * (2 ** (attempts - 1))
+
+    async def _sleep(self, seconds: float) -> None:
+        await asyncio.sleep(seconds)
+
+    def _format_error(self, status_code: int) -> str:
+        if status_code == 429:
+            return "OpenAI API rate limit exceeded. Please try again shortly."
+        if 500 <= status_code < 600:
+            return "OpenAI API is currently unavailable. Please retry later."
+        return "Unexpected OpenAI API error."
 
     def _resolve_model(self, agent: str) -> str:
         agent_key = agent.lower()
